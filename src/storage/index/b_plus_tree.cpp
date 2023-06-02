@@ -125,14 +125,29 @@ auto BPLUSTREE_TYPE::InsertInParent(BPlusTreePage *old_page, const KeyType &key,
   Page *new_parent_page = buffer_pool_manager_->NewPage(&new_parent_page_id);
   auto new_parent_internal_bpt_page = reinterpret_cast<InternalPage *>(new_parent_page->GetData());
   new_parent_internal_bpt_page->Init(new_parent_page_id, parent_bpt_page->GetParentPageId(), internal_max_size_);
-  int i = 0, n = internal_max_size_;
+  int i = 0;
+  int n = internal_copy_page->GetSize();
   while (i < n / 2) {
     parent_bpt_page->InsertAtEnd(internal_copy_page->KeyAt(i), internal_copy_page->ValueAt(i));
+
+    // set children's parent page id
+    auto *child = reinterpret_cast<BPlusTreePage *>(buffer_pool_manager_->FetchPage(internal_copy_page->ValueAt(i))->GetData());
+    BUSTUB_ENSURE(child != nullptr, "nullptr child");
+    child->SetParentPageId(parent_bpt_page->GetPageId());
+    buffer_pool_manager_->UnpinPage(child->GetPageId(), true);
+
     i++;
   }
   KeyType new_key = internal_copy_page->KeyAt(i);
   while (i < n) {
     new_parent_internal_bpt_page->InsertAtEnd(internal_copy_page->KeyAt(i), internal_copy_page->ValueAt(i));
+    
+    // set children's parent page id
+    auto *child = reinterpret_cast<BPlusTreePage *>(buffer_pool_manager_->FetchPage(internal_copy_page->ValueAt(i))->GetData());
+    BUSTUB_ENSURE(child != nullptr, "nullptr child");
+    child->SetParentPageId(new_parent_internal_bpt_page->GetPageId());
+    buffer_pool_manager_->UnpinPage(child->GetPageId(), true);
+
     i++;
   }
   
